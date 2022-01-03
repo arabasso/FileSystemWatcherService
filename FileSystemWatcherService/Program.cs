@@ -1,25 +1,55 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Configuration;
+using System.Configuration.Install;
+using System.IO;
+using System.Reflection;
 using System.ServiceProcess;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace FileSystemWatcherService
 {
     static class Program
     {
-        /// <summary>
-        /// Ponto de entrada principal para o aplicativo.
-        /// </summary>
-        static void Main()
+        static void Main(
+            string [] args)
         {
-            ServiceBase[] ServicesToRun;
-            ServicesToRun = new ServiceBase[]
+            Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
+
+            if (args.Length == 1)
             {
-                new Service()
-            };
-            ServiceBase.Run(ServicesToRun);
+                try
+                {
+                    var assembly = Assembly.GetExecutingAssembly();
+
+                    var installer = new AssemblyInstaller(assembly, null)
+                    {
+                        UseNewContext = true
+                    };
+
+                    switch (args[0].ToLower())
+                    {
+                        case "/install":
+                            installer.Install(null);
+                            break;
+
+                        case "/uninstall":
+                            installer.Uninstall(null);
+                            break;
+                    }
+
+                    installer.Commit(null);
+                }
+
+                catch
+                {
+                    // Ignore
+                }
+
+                return;
+            }
+
+            var config = (WatchersConfig) ConfigurationManager.GetSection("watchers");
+
+            ServiceBase.Run(new Service(config));
         }
     }
 }

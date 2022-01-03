@@ -34,7 +34,7 @@ namespace FileSystemWatcherService
             // 
             // FileSystemWatcherServiceProcessInstaller
             // 
-            this.FileSystemWatcherServiceProcessInstaller.Account = System.ServiceProcess.ServiceAccount.NetworkService;
+            this.FileSystemWatcherServiceProcessInstaller.Account = System.ServiceProcess.ServiceAccount.LocalSystem;
             this.FileSystemWatcherServiceProcessInstaller.Password = null;
             this.FileSystemWatcherServiceProcessInstaller.Username = null;
             // 
