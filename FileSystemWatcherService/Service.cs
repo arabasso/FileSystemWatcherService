@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Management.Automation;
 using System.ServiceProcess;
 
@@ -100,6 +101,11 @@ namespace FileSystemWatcherService
                 ps.Runspace.SessionStateProxy.SetVariable("event", obj);
                 ps.AddScript(_watchers[watcher].Script);
                 ps.Invoke();
+
+                if (ps.HadErrors)
+                {
+                    throw new Exception(string.Join(Environment.NewLine, ps.Streams.Error.Select(s => s.Exception.Message)));
+                }
             }
 
             catch (Exception ex)
