@@ -62,7 +62,6 @@ namespace FileSystemWatcherService
         [XmlText]
         public string ScriptText { get; set; }
 
-        private string _script;
-        public string Script => _script ??= ScriptText ?? File.ReadAllText(ScriptAttribute);
+        public string Script => ScriptText ?? File.ReadAllText(ScriptAttribute);
     }
 }

@@ -1,29 +1,54 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Management.Automation;
 using System.ServiceProcess;
+using System.Threading;
 
 namespace FileSystemWatcherService
 {
     public partial class Service :
         ServiceBase
     {
-        private readonly WatchersConfig _config;
+        private WatchersConfig _config;
         private readonly Dictionary<FileSystemWatcher, WatcherConfig> _watchers = new();
+        private readonly FileSystemWatcher _appConfigWatcher;
 
-        public Service(
-            WatchersConfig config)
+        public Service()
         {
-            _config = config;
+            var appConfigPath = Path.GetDirectoryName(AppDomain.CurrentDomain.SetupInformation.ConfigurationFile);
+            var appConfigFile = Path.GetFileName(AppDomain.CurrentDomain.SetupInformation.ConfigurationFile);
+
+            _config = (WatchersConfig)ConfigurationManager.GetSection("watchers");
+            _appConfigWatcher = new FileSystemWatcher(appConfigPath ?? ".", appConfigFile)
+            {
+                EnableRaisingEvents = true,
+            };
+
+            _appConfigWatcher.Changed += AppConfigWatcherOnChanged;
 
             InitializeComponent();
         }
 
-        protected override void OnStart(
-            string[] args)
+        private void AppConfigWatcherOnChanged(
+            object sender,
+            FileSystemEventArgs e)
+        {
+            EventLog.WriteEntry("Restarting watchers...", EventLogEntryType.Information);
+
+            Thread.Sleep(500);
+
+            ConfigurationManager.RefreshSection("watchers");
+
+            _config = (WatchersConfig)ConfigurationManager.GetSection("watchers");
+
+            Restart();
+        }
+
+        private void StartWatchers()
         {
             foreach (var config in _config.Watchers)
             {
@@ -33,7 +58,6 @@ namespace FileSystemWatcherService
                     {
                         IncludeSubdirectories = config.IncludeSubdirectories,
                         NotifyFilter = (NotifyFilters)Enum.Parse(typeof(NotifyFilters), config.NotifyFilter),
-                    
                     };
 
                     if (config.Changed)
@@ -75,18 +99,38 @@ namespace FileSystemWatcherService
             }
         }
 
+        private void StopWatchers()
+        {
+            foreach (var watcher in _watchers)
+            {
+                watcher.Key.Dispose();
+            }
+        }
+
+        private void Restart()
+        {
+            StopWatchers();
+            StartWatchers();
+        }
+
+        protected override void OnStart(
+            string[] args)
+        {
+            StartWatchers();
+        }
+
         private void WatcherError(
             object sender,
             ErrorEventArgs e)
         {
-            DispatchEvent((FileSystemWatcher) sender, e);
+            DispatchEvent((FileSystemWatcher)sender, e);
         }
 
         private void WatcherEvent(
             object sender,
             FileSystemEventArgs e)
         {
-            DispatchEvent((FileSystemWatcher) sender, e);
+            DispatchEvent((FileSystemWatcher)sender, e);
         }
 
         private void DispatchEvent(
@@ -116,10 +160,9 @@ namespace FileSystemWatcherService
 
         protected override void OnStop()
         {
-            foreach (var watcher in _watchers)
-            {
-                watcher.Key.Dispose();
-            }
+            _appConfigWatcher.Dispose();
+
+            StopWatchers();
         }
     }
 }

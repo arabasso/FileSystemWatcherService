@@ -1,8 +1,9 @@
 ﻿using System;
-using System.Configuration;
 using System.Configuration.Install;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Security.Principal;
 using System.ServiceProcess;
 
 namespace FileSystemWatcherService
@@ -10,46 +11,80 @@ namespace FileSystemWatcherService
     static class Program
     {
         static void Main(
-            string [] args)
+            string[] args)
         {
             Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
 
+            if (!Environment.UserInteractive)
+            {
+                ServiceBase.Run(new Service());
+
+                return;
+            }
+
             if (args.Length == 1)
             {
-                try
-                {
-                    var assembly = Assembly.GetExecutingAssembly();
+                var assembly = Assembly.GetExecutingAssembly();
 
+                if (IsAdministrator())
+                {
                     var installer = new AssemblyInstaller(assembly, null)
                     {
                         UseNewContext = true
                     };
 
-                    switch (args[0].ToLower())
+                    try
                     {
-                        case "/install":
-                            installer.Install(null);
-                            break;
+                        switch (args[0].ToLower())
+                        {
+                            case "/install":
+                                installer.Install(null);
+                                break;
 
-                        case "/uninstall":
-                            installer.Uninstall(null);
-                            break;
+                            case "/uninstall":
+                                installer.Uninstall(null);
+                                break;
+                        }
+
+                        installer.Commit(null);
                     }
 
-                    installer.Commit(null);
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e.Message);
+                    }
+
+                    return;
                 }
 
-                catch
+                var startInfo = new ProcessStartInfo
                 {
-                    // Ignore
-                }
+                    UseShellExecute = true,
+                    WorkingDirectory = Environment.CurrentDirectory,
+                    FileName = assembly.Location,
+                    Arguments = string.Join(" ", args),
+                    CreateNoWindow = true,
+                    Verb = "runas",
+                };
+
+                Process.Start(startInfo)?.WaitForExit();
 
                 return;
             }
 
-            var config = (WatchersConfig) ConfigurationManager.GetSection("watchers");
+            Console.WriteLine(@"Usage: FileSystemWatcherService.exe [OPTION]");
+            Console.WriteLine();
+            Console.WriteLine(@"  /install      To install service");
+            Console.WriteLine(@"  /uninstall    To uninstall service");
+        }
 
-            ServiceBase.Run(new Service(config));
+        public static bool IsAdministrator()
+        {
+            using WindowsIdentity identity = WindowsIdentity.GetCurrent();
+
+            var principal = new WindowsPrincipal(identity);
+
+            return principal.IsInRole(WindowsBuiltInRole.Administrator);
         }
     }
 }
