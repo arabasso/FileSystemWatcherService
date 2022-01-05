@@ -89,7 +89,7 @@ namespace FileSystemWatcherService
 
                     _watchers.Add(watcher, config);
 
-                    EventLog.WriteEntry($"Monitoring {config.NotifyFilter} - {config.Path}\\{config.Filter}", EventLogEntryType.Information);
+                    EventLog.WriteEntry($"Monitoring {config}", EventLogEntryType.Information);
                 }
 
                 catch (Exception e)

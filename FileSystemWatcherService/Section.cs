@@ -63,5 +63,32 @@ namespace FileSystemWatcherService
         public string ScriptText { get; set; }
 
         public string Script => ScriptText ?? File.ReadAllText(ScriptAttribute);
+
+        public override string ToString()
+        {
+            var actions = new List<string>();
+
+            if (Created)
+            {
+                actions.Add("Created");
+            }
+
+            if (Changed)
+            {
+                actions.Add("Changed");
+            }
+
+            if (Renamed)
+            {
+                actions.Add("Renamed");
+            }
+
+            if (Deleted)
+            {
+                actions.Add("Deleted");
+            }
+
+            return $"Path: {Path}; Filter: {Filter}; Action: {string.Join(",", actions)}; Notify Filter: {NotifyFilter}";
+        }
     }
 }
