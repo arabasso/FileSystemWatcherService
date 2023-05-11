@@ -93,14 +93,18 @@ public abstract class Watcher : FileSystemWatcher
         DispatchEvent(e);
     }
 
-    protected virtual void WatcherEvent(
+    private void WatcherEvent(
         object sender,
         FileSystemEventArgs e)
     {
-        AddOrGetExistingCache(GetKey(e), e);
+        var key = GetKey(e);
+
+        if (key == null) return;
+
+        AddOrGetExistingCache(key, e);
     }
 
-    protected object AddOrGetExistingCache(string key, object value)
+    protected virtual object AddOrGetExistingCache(string key, FileSystemEventArgs args)
     {
         var cacheItemPolicy = new CacheItemPolicy
         {
@@ -108,7 +112,7 @@ public abstract class Watcher : FileSystemWatcher
             SlidingExpiration = TimeSpan.FromMilliseconds(Config.Timeout),
         };
 
-        return _memoryCache.AddOrGetExisting(key, value, cacheItemPolicy);
+        return _memoryCache.AddOrGetExisting(key, args, cacheItemPolicy);
     }
 
     private void DispatchEvent(object obj)

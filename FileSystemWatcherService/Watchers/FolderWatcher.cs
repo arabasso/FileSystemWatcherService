@@ -17,17 +17,17 @@ public class FolderWatcher : Watcher
         return Path;
     }
 
-    protected override void WatcherEvent(object sender, FileSystemEventArgs e)
+    protected override object AddOrGetExistingCache(string key, FileSystemEventArgs e)
     {
-        var key = GetKey(e);
-
         var args = new FileSystemEventListArgs( Path, key);
 
-        args = (FileSystemEventListArgs)AddOrGetExistingCache(key, args) ?? args;
+        args = (FileSystemEventListArgs)base.AddOrGetExistingCache(key, args) ?? args;
 
         if (!args.List.Contains(e, _comparer))
         {
             args.List.Add(e);
         }
+
+        return args;
     }
 }

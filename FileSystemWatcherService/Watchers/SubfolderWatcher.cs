@@ -13,8 +13,10 @@ public class SubfolderWatcher : FolderWatcher
 
     protected override string GetKey(FileSystemEventArgs e)
     {
-        return e.FullPath.Replace(Path, "")
-            .Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries)
-            .First();
+        var path = e.FullPath.Replace(Path, "");
+
+        return path.Count(c => c == '\\') > 1
+            ? path.Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries).First()
+            : null;
     }
 }
