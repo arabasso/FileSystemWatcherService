@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Diagnostics;
 using System.IO;
 using System.Xml;
 using System.Xml.Serialization;
+using FileSystemWatcherService.Watchers;
 
 namespace FileSystemWatcherService
 {
@@ -29,6 +31,9 @@ namespace FileSystemWatcherService
     [Serializable]
     public class WatcherConfig
     {
+        [XmlAttribute("mode")]
+        public string Mode { get; set; } = "default";
+
         [XmlAttribute("path")]
         public string Path { get; set; }
 
@@ -55,6 +60,9 @@ namespace FileSystemWatcherService
 
         [XmlAttribute("error")]
         public bool Error { get; set; }
+
+        [XmlAttribute("timeout")]
+        public int Timeout { get; set; } = 1000;
 
         [XmlAttribute("script")]
         public string ScriptAttribute { get; set; }
@@ -88,7 +96,19 @@ namespace FileSystemWatcherService
                 actions.Add("Deleted");
             }
 
-            return $"Path: {Path}; Filter: {Filter}; Action: {string.Join(",", actions)}; Notify Filter: {NotifyFilter}";
+            return $"Mode: {Mode}; Path: {Path}; Filter: {Filter}; Action: {string.Join(",", actions)}; Notify Filter: {NotifyFilter}";
+        }
+
+        public FileSystemWatcher Create(EventLog eventLog)
+        {
+            return Mode.ToLower() switch
+            {
+                "folder" => new FolderWatcher(eventLog, this),
+                "subfolder" => new SubfolderWatcher(eventLog, this),
+                "default" => new DefaultWatcher(eventLog, this),
+                "" => new DefaultWatcher(eventLog, this),
+                _ => throw new NotImplementedException()
+            };
         }
     }
 }

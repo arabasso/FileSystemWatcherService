@@ -49,6 +49,7 @@
     <Reference Include="System.Management.Automation, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.PowerShell.5.ReferenceAssemblies.1.1.0\lib\net4\System.Management.Automation.dll</HintPath>
     </Reference>
+    <Reference Include="System.Runtime.Caching" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -63,6 +64,20 @@
     </Compile>
     <Compile Include="ProjectInstaller.Designer.cs">
       <DependentUpon>ProjectInstaller.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Watchers\DefaultWatcher.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Watchers\FileSystemEventArgsComparer.cs" />
+    <Compile Include="Watchers\FileSystemEventListArgs.cs" />
+    <Compile Include="Watchers\FolderWatcher.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Watchers\SubfolderWatcher.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Watchers\Watcher.cs">
+      <SubType>Component</SubType>
     </Compile>
     <None Include="app.manifest" />
     <None Include="packages.config" />

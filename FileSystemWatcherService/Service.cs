@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Management.Automation;
 using System.ServiceProcess;
 using System.Threading;
 
@@ -14,7 +12,7 @@ namespace FileSystemWatcherService
         ServiceBase
     {
         private WatchersConfig _config;
-        private readonly Dictionary<FileSystemWatcher, WatcherConfig> _watchers = new();
+        private readonly List<FileSystemWatcher> _watchers = new();
         private readonly FileSystemWatcher _appConfigWatcher;
 
         public Service()
@@ -25,6 +23,7 @@ namespace FileSystemWatcherService
             _config = (WatchersConfig)ConfigurationManager.GetSection("watchers");
             _appConfigWatcher = new FileSystemWatcher(appConfigPath ?? ".", appConfigFile)
             {
+                NotifyFilter = NotifyFilters.LastWrite,
                 EnableRaisingEvents = true,
             };
 
@@ -37,6 +36,8 @@ namespace FileSystemWatcherService
             object sender,
             FileSystemEventArgs e)
         {
+            StopWatchers();
+
             EventLog.WriteEntry("Restarting watchers...", EventLogEntryType.Information);
 
             Thread.Sleep(500);
@@ -45,7 +46,7 @@ namespace FileSystemWatcherService
 
             _config = (WatchersConfig)ConfigurationManager.GetSection("watchers");
 
-            Restart();
+            StartWatchers();
         }
 
         private void StartWatchers()
@@ -54,40 +55,9 @@ namespace FileSystemWatcherService
             {
                 try
                 {
-                    var watcher = new FileSystemWatcher(config.Path, config.Filter)
-                    {
-                        IncludeSubdirectories = config.IncludeSubdirectories,
-                        NotifyFilter = (NotifyFilters)Enum.Parse(typeof(NotifyFilters), config.NotifyFilter),
-                    };
+                    var watcher = config.Create(EventLog);
 
-                    if (config.Changed)
-                    {
-                        watcher.Changed += WatcherEvent;
-                    }
-
-                    if (config.Renamed)
-                    {
-                        watcher.Renamed += WatcherEvent;
-                    }
-
-                    if (config.Created)
-                    {
-                        watcher.Created += WatcherEvent;
-                    }
-
-                    if (config.Deleted)
-                    {
-                        watcher.Deleted += WatcherEvent;
-                    }
-
-                    if (config.Error)
-                    {
-                        watcher.Error += WatcherError;
-                    }
-
-                    watcher.EnableRaisingEvents = true;
-
-                    _watchers.Add(watcher, config);
+                    _watchers.Add(watcher);
 
                     EventLog.WriteEntry($"Monitoring {config}", EventLogEntryType.Information);
                 }
@@ -103,59 +73,16 @@ namespace FileSystemWatcherService
         {
             foreach (var watcher in _watchers)
             {
-                watcher.Key.Dispose();
+                watcher.Dispose();
             }
-        }
 
-        private void Restart()
-        {
-            StopWatchers();
-            StartWatchers();
+            _watchers.Clear();
         }
 
         protected override void OnStart(
             string[] args)
         {
             StartWatchers();
-        }
-
-        private void WatcherError(
-            object sender,
-            ErrorEventArgs e)
-        {
-            DispatchEvent((FileSystemWatcher)sender, e);
-        }
-
-        private void WatcherEvent(
-            object sender,
-            FileSystemEventArgs e)
-        {
-            DispatchEvent((FileSystemWatcher)sender, e);
-        }
-
-        private void DispatchEvent(
-            FileSystemWatcher watcher,
-            object obj)
-        {
-            try
-            {
-                using var ps = PowerShell.Create();
-
-                ps.AddCommand("Set-ExecutionPolicy").AddArgument("Unrestricted");
-                ps.Runspace.SessionStateProxy.SetVariable("event", obj);
-                ps.AddScript(_watchers[watcher].Script);
-                ps.Invoke();
-
-                if (ps.HadErrors)
-                {
-                    throw new Exception(string.Join(Environment.NewLine, ps.Streams.Error.Select(s => s.Exception.Message)));
-                }
-            }
-
-            catch (Exception ex)
-            {
-                EventLog.WriteEntry(ex.Message, EventLogEntryType.Error);
-            }
         }
 
         protected override void OnStop()
